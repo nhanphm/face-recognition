@@ -1,8 +1,8 @@
 import cv2
 from time import sleep
 from PIL import Image
-
-from database import getProfile 
+from datetime import datetime
+from database import getProfile, insertOrUpdateAttendance 
 
 def main_app():
         
@@ -24,19 +24,19 @@ def main_app():
 
                 id,confidence = recognizer.predict(roi_gray)
                 profile=getProfile(id)
-                confidence = 100 - int(confidence)
-                pred = 0
-                if profile != None:
+                #confidence = 100 - int(confidence)
+                if profile != None and confidence >=30 and confidence <=80:
+                            label = str(profile[1]).upper() + ' - Conf: ' + str(int(confidence))
                     #if u want to print confidence level
                             #confidence = 100 - int(confidence)
                             pred += +1
                             font = cv2.FONT_HERSHEY_PLAIN
                             frame = cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-                            frame = cv2.putText(frame, str(profile[1]), (x, y-4), font, 1, (0, 255, 0), 1, cv2.LINE_AA)
+                            frame = cv2.putText(frame, label, (x, y-4), font, 1, (0, 255, 0), 1, cv2.LINE_AA)
 
                 else:   
                             pred += -1
-                            text = "UnknownFace"
+                            text = "UnknownFace - conf:" + str(confidence)
                             font = cv2.FONT_HERSHEY_PLAIN
                             frame = cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
                             frame = cv2.putText(frame, text, (x, y-4), font, 1, (0, 0,255), 1, cv2.LINE_AA)
@@ -44,15 +44,19 @@ def main_app():
             cv2.imshow("image", frame)
 
 
-            if cv2.waitKey(20) & 0xFF == ord('q'):
+            if cv2.waitKey(20):
                 print(pred)
-                if pred > 0 : 
+                if pred > 20 : 
                     dim =(124,124)
                     img = cv2.imread(f"./data/dataSet/User.{id}.{pred}.jpg", cv2.IMREAD_UNCHANGED)
                     resized = cv2.resize(img, dim, interpolation = cv2.INTER_AREA)
                     cv2.imwrite(f"./data/dataSet/User.{id}.50.jpg", resized)
                     Image1 = Image.open(f"./2.png") 
-                      
+                    
+                    # add event to database
+                    now = datetime.now()
+                    dt_string = now.strftime("%Y-%m-%d %H:%M:%S")
+                    insertOrUpdateAttendance(id, dt_string)
                     # make a copy the image so that the  
                     # original image does not get affected 
                     Image1copy = Image1.copy() 
@@ -66,10 +70,13 @@ def main_app():
                     Image1copy.save("end.png") 
                     frame = cv2.imread("end.png", 1)
 
-                    cv2.imshow("Result",frame)
-                    cv2.waitKey(5000)
-                break
+                    cv2.imshow("Attendence",frame)
+                    cv2.waitKey(10000)
+                    cv2.destroyWindow('Attendence')
+                    pred = 0
 
+            if cv2.waitKey(20) & 0xFF == ord('q'):
+                break                   
 
         cap.release()
         cv2.destroyAllWindows()
